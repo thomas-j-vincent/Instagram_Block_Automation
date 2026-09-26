@@ -3,5 +3,9 @@
 "Increased_Wait":20,
 "Buffer":15,
 "Buffer_Wait_Lower":150,
-"Buffer_Wait_Upper":200
+"Buffer_Wait_Upper":200,
+"Match_Mode": "exact",
+"Block_Phrases": [
+  "israel"
+]
 }

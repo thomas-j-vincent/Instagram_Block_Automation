@@ -4,6 +4,9 @@
 # Code Improvised by Saad BENBOUZID
 # Github : https://github.com/Macadoshis
 
+# Code improvised for current use by Thomas VINCENT
+# Github : https://github.com/thomas-j-vincent
+
 '''
 For #Blockout2024
 A Script crafted to automate blocking users on instagram
@@ -12,7 +15,11 @@ If you are a Palestine supporter and a developer, feel free to fork the code and
 This script is still experimental and can cause errors while running,
 If the script throws errors, look at the error in the log-file in log directory.
 '''
-
+'''
+For blocking adult accounts, spam accounts and AI accounts. 
+It has also been modified to work on microsoft edge, but all original lines remain commented out
+with the For chrome written next to them, simply switch these back 
+'''
 '''
 Instructions
 1. Either make changes according to your browser or install brave browser for easier use
@@ -22,8 +29,11 @@ Instructions
 
 
 # Modules
+from pathlib import Path
+
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.edge.service import Service         # for microsoft edge
+#from selenium.webdriver.chrome.service import Service      #for google chrome
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -38,13 +48,17 @@ from random import choice, randint
 from os import listdir
 
 from stdiomask import getpass
-
+print("working...")
 from datetime import datetime
 
 from json import loads
 
 # Vars
-with open('res/config.json', 'r') as File_Obj:
+PROJECT_ROOT = Path(__file__).resolve().parent
+RES_DIR = PROJECT_ROOT / 'res'
+LOG_DIR = PROJECT_ROOT / 'log'
+
+with open(RES_DIR / 'config.json', 'r', encoding='utf-8') as File_Obj:
     Config_Json = File_Obj.read()
 
 Config = loads(Config_Json)
@@ -54,11 +68,15 @@ Standard_Wait = Config['Standard_Wait']
 Increased_Wait = Config['Increased_Wait']
 Buffer_Wait_Lower = Config["Buffer_Wait_Lower"]
 Buffer_Wait_Upper = Config["Buffer_Wait_Upper"]
+Match_Mode = Config.get('Match_Mode', 'exact').lower()
+Block_Phrases = [phrase.strip().lower() for phrase in Config.get('Block_Phrases', []) if phrase and phrase.strip()]
 
-DRIVER = "./Driver/chromedriver.exe"
-BRAVE = r"C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe"
-# CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
-LINK = "http://www.instagram.com"
+DRIVER = str(PROJECT_ROOT / 'Driver' / 'msedgedriver.exe')                      #for microsoft edge
+#DRIVER = str(PROJECT_ROOT / 'Driver' / 'chromedriver.exe')                     #for google chrome
+EDGE = r"C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"
+#BRAVE = r"C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe"  for Brave
+# CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"             for chrome
+LINK = "https://www.instagram.com"
 PROFILE = "https://www.instagram.com/{0}"
 
 USERNAME = str(input("USERNAME: "))
@@ -69,17 +87,26 @@ Random_Wait_Times = [x/1000 for x in range(2000, 6001)]
 Blocked_List_Exists = False
 Blocked = []
 
-if f'{USERNAME}.txt' in listdir('log'):
+if f'{USERNAME}.txt' in listdir(LOG_DIR):
     Blocked_List_Exists = True
 
-with open('res/Accounts_To_Block.txt', 'r') as File_Obj:
-    To_Block = [user.strip('\n') for user in File_Obj.readlines()]
+
+def Filter_Users_By_Match_Mode(users):
+    if Match_Mode == 'contains':
+        if not Block_Phrases:
+            return []
+        return [user for user in users if any(phrase in user.lower() for phrase in Block_Phrases)]
+    return users
+
+
+with open(RES_DIR / 'Accounts_To_Block.txt', 'r', encoding='utf-8') as File_Obj:
+    To_Block = Filter_Users_By_Match_Mode([user.strip() for user in File_Obj.readlines() if user.strip()])
 
 Counter = 0
 WaitTime = randint(Buffer_Wait_Lower, Buffer_Wait_Upper)
 
 # XPATH Vars
-with open('res\\xpath.json', 'r') as File_Obj:
+with open(RES_DIR / 'xpath.json', 'r', encoding='utf-8') as File_Obj:
     XPATHS_Json = File_Obj.read()
 
 XPATHS = loads(XPATHS_Json)
@@ -90,29 +117,44 @@ Block_Button_XPATH = XPATHS["Block_Button_XPATH"]
 Follow_Button_XPATH = XPATHS["Follow_Button_XPATH"]
 Block_Confirm_XPATH = XPATHS["Block_Confirm_XPATH"]
 
+# Edge options
+Edge_Options = webdriver.EdgeOptions()  
+Edge_Options.add_argument("--inprivate") 
+Edge_Options.add_argument("--enable-chrome-browser-cloud-management")
+Edge_Options.add_argument("--disable-blink-features=AutomationControlled")   # NEW: reduces automation signals
+Edge_Options.add_experimental_option("excludeSwitches", ["enable-automation"])  # NEW: hides the "controlled by automation" bar
+Edge_Options.add_experimental_option("useAutomationExtension", False)        # NEW: disables the automation extension
+Edge_Options.binary_location = EDGE 
+
 # Chrome Options
-Chrome_Options = webdriver.ChromeOptions()
-Chrome_Options.add_argument("--incognito")
-Chrome_Options.add_argument("--enable-chrome-browser-cloud-management")
-Chrome_Options.binary_location = BRAVE
+#Chrome_Options = webdriver.ChromeOptions()
+#Chrome_Options.add_argument("--incognito")
+#Chrome_Options.add_argument("--enable-chrome-browser-cloud-management")
+#Chrome_Options.binary_location = BRAVE
 
 # Initialisation
 service = Service(executable_path=DRIVER)
-Browser = webdriver.Chrome(service=service, options=Chrome_Options)
+Browser = webdriver.Edge(service=service, options=Edge_Options)              #for edge
+#Browser = webdriver.Chrome(service=service, options=Chrome_Options)         #for chrome
+#Browser.execute_script("""                                         # NEW: hides the navigator.webdriver flag
+#    Object.defineProperty(navigator, 'webdriver', {
+#        get: () => undefined
+#    })
+#""")
 
 # Functions
 def New_Blocked_List(List):
-    with open(f'./log/{USERNAME}.txt', 'w') as File_Obj:
+    with open(LOG_DIR / f'{USERNAME}.txt', 'w', encoding='utf-8') as File_Obj:
         [File_Obj.write(element + '\n') for element in List]
 
 def Retrive_Blocked_List():
-    with open(f'./log/{USERNAME}.txt', 'r') as File_Obj:
+    with open(LOG_DIR / f'{USERNAME}.txt', 'r', encoding='utf-8') as File_Obj:
         Data = [element.strip('\n') for element in File_Obj.readlines()]
     return Data
 
 def log_error(ERROR):
-    Mode = 'a' if f'Error_Log_{USERNAME}.txt' in listdir('./log') else 'w'
-    with open(f'./log/Error_Log_{USERNAME}.txt', Mode) as File_Obj:
+    Mode = 'a' if f'Error_Log_{USERNAME}.txt' in listdir(LOG_DIR) else 'w'
+    with open(LOG_DIR / f'Error_Log_{USERNAME}.txt', Mode, encoding='utf-8') as File_Obj:
         time = datetime.now()
         record_time = f"[{time.day}/{time.month}/{time.year} | {time.time().hour}:{time.time().minute}:{time.time().second}]"
         File_Obj.write(f"{record_time}\n---[Error Start Block]---\n{ERROR}\n---[Error End Block]---\n")
@@ -133,9 +175,16 @@ def Block(USER_LINK):
     
     try:
         WebDriverWait(Browser, Increased_Wait).until(EC.presence_of_element_located((By.XPATH, Three_Dots_XPATH)))
-        RandWait()
+    except Exception as Error:
+        print("  -> Stuck on: Three_Dots_XPATH (menu button not found)")
+        return "404"
+    
+    RandWait()
+    
+    try:
         Follow_Button = Browser.find_element(By.XPATH, Follow_Button_XPATH)
     except Exception as Error:
+        print("  -> Stuck on: Follow_Button_XPATH (follow/unblock button not found)")
         return "404"
     
     if str(Follow_Button.text) == "Unblock":
@@ -143,15 +192,35 @@ def Block(USER_LINK):
         return None
     
     RandWait()
+
+    try:                                                            # NEW: separate stage for clicking the three dots
+        Three_Dots = Browser.find_element(By.XPATH, Three_Dots_XPATH)
+        Three_Dots.click()
+    except Exception as Error:
+        print("  -> Stuck on: clicking Three_Dots")                 # NEW
+        return "404"
+
+    try:                                                            # NEW: separate stage for the block menu option
+        WebDriverWait(Browser, Standard_Wait).until(EC.presence_of_element_located((By.XPATH, Block_Button_XPATH)))
+    except Exception as Error:
+        print("  -> Stuck on: Block_Button_XPATH (menu opened, but Block option not found)")  # NEW
+        return "404"
     
-    Three_Dots = Browser.find_element(By.XPATH, Three_Dots_XPATH)
-    Three_Dots.click()
-    WebDriverWait(Browser, Standard_Wait).until(EC.presence_of_element_located((By.XPATH, Block_Button_XPATH)))
     RandWait()
-    
-    Block_Button = Browser.find_element(By.XPATH, Block_Button_XPATH)
-    Block_Button.click()
-    WebDriverWait(Browser, Standard_Wait).until(EC.presence_of_element_located((By.XPATH, Block_Confirm_XPATH)))
+
+    try:                                                            # NEW: separate stage for clicking Block
+        Block_Button = Browser.find_element(By.XPATH, Block_Button_XPATH)
+        Block_Button.click()
+    except Exception as Error:
+        print("  -> Stuck on: clicking Block_Button")               # NEW
+        return "404"
+
+    try:                                                            # NEW: separate stage for the confirmation dialog
+        WebDriverWait(Browser, Standard_Wait).until(EC.presence_of_element_located((By.XPATH, Block_Confirm_XPATH)))
+    except Exception as Error:
+        print("  -> Stuck on: Block_Confirm_XPATH (confirmation button not found)")  # NEW
+        return "404"
+
     RandWait()
     
     Block_Confirm = Browser.find_element(By.XPATH, Block_Confirm_XPATH)
@@ -168,17 +237,40 @@ if Blocked_List_Exists:
 # Automation Process
 Browser.get(LINK)
 
-WebDriverWait(Browser, Standard_Wait).until(EC.presence_of_element_located((By.NAME, "password")))
+
+try:                                                                # NEW: cookie pop-up handling block, start
+    Cookie_Wait = WebDriverWait(Browser, Standard_Wait)
+    Cookie_Button = Cookie_Wait.until(
+        EC.element_to_be_clickable((By.XPATH, "//button[contains(text(),'Allow')]"))
+    )
+    Cookie_Button.click()
+    RandWait()
+    print("Cookie pop-up dismissed")
+except Exception as Error:
+    print("No cookie pop-up found")                                # NEW: cookie pop-up handling block, end
+
+
+try:                                                                 # NEW: screenshot-on-failure block, start
+    WebDriverWait(Browser, Standard_Wait).until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='password']")))
+    print("success!")
+except Exception as Error:
+    print("stuck finding password")
+    #Browser.save_screenshot(str(LOG_DIR / 'login_timeout_debug.png'))  # NEW: saves what the page shows
+    raise                                                           # NEW: screenshot-on-failure block, end
+
+#WebDriverWait(Browser, Standard_Wait).until(EC.presence_of_element_located((By.NAME, "password")))
 RandWait()
 
-Username_Input_Element = Browser.find_element(By.NAME, "username")
+Username_Input_Element = Browser.find_element(By.CSS_SELECTOR, "input[type='text']")
 Username_Input_Element.send_keys(USERNAME)
 
-Password_Input_Element = Browser.find_element(By.NAME, "password")
+#Password_Input_Element = Browser.find_element(By.NAME, "password")
+Password_Input_Element = Browser.find_element(By.CSS_SELECTOR, "input[type='password']")
 Password_Input_Element.send_keys(PASSWORD)
 RandWait()
 
 Password_Input_Element.send_keys(Keys.ENTER)
+input("If Instagram asks for a verification code, enter it in the browser now. Then press Enter here to continue...")  # NEW: unlimited manual pause
 WebDriverWait(Browser, Standard_Wait).until(EC.presence_of_element_located((By.XPATH, Search_Button_XPATH)))
 RandWait()
 
