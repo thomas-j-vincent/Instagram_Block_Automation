@@ -2,16 +2,17 @@
 This script let's you automate blocking users on instagram.
 
 Make sure your browser version and driver version is same.
-Driver with this script is chrome driver version 126, the script is using brave broswer. you can tweak it to your needs.
+The script was originally written for Chrome with the Brave browser however, I have changed it to work for Microsoft Edge. However, I have left the lines for the chrome driver in the program just commented out (with notes so you know which to change)
 
 To use the script, just follow the instructions on the python script file (top section)
 
-**_For easy use, Install Brave Browser_**
+**_To block instagram spam, AI accounts_**
 
-# Operation Blockout2024
-**Fellow Supporters of Palestine, I have designed this script to help you automate blocking celebrities. Let those celebrities regret their silence in return for little bit green paper. Let them know your power. Let them know who you are and what you can do.**
+**The idea was to remove all the spam accounts off Instagram to make it a healthier place to spend time on, I had originally decided to try and block the search pages however this meant that I would have to use an external app or emulate it via the web. This was an overall downgrade especially if you have to add a new friend etc... Therefore I decided to block everyone I didn't want to see, although there were too many. so BAM! I made(edited) this.**
 
-# Resources
+## Block list
+I am yet to make the block list, I intend to run a separate webscraper to compile a list to block, and then I can keep the first file as original as possible.
+
 ## Brave
 Brave Browser: https://brave.com/en-in/
 
@@ -24,7 +25,5 @@ Chrome Driver: https://chromedriver.chromium.org/ ([download page](https://googl
 
 Edge Driver: https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/?ch=1&form=MA13LH
 
-### Credits to anonymous instagram user with the username 'blockout.2022' for the block list of celebrities
-You can participate in the operation blockout2024 manually by blocking all accounts in the following list of user **blockout.2022**
 
 
